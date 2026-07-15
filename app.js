@@ -257,7 +257,7 @@ function seedChapters() {
       'Получить отзыв клиента',
     ], 'Страх первого клиента'),
     ch(5, 'Глава 5. Система контента', 'Месяцы 4–8 (параллельно)', 'Растущий личный бренд', [
-      'Перезапустить TikTok (sh1k_a) с новым позиционированием',
+      'Перезапустить TikTok-канал с новым позиционированием',
       'Определить 3–4 рубрики',
       'Публиковать регулярно (по этапам: 1–2 → 2–3 → 3–4 в неделю)',
       'Перерабатывать один материал под несколько площадок',
@@ -439,10 +439,10 @@ function defaultState() {
     onboarded: false,
     screen: 'home',
     profile: {
-      name: 'Александр', charName: 'SH1KA', city: 'Нижний Новгород',
-      job: 'Бариста', workHours: '09:00–21:00', freeHoursWeek: 5,
-      goal12m: 'Уйти из найма в AI-создание: 150 тыс. ₽/мес через 6 мес, 250 тыс. ₽/мес через 12',
-      babyDue: '2026-10-25',
+      name: 'Герой', charName: 'HERO', city: 'Город N',
+      job: 'Специалист', workHours: '09:00–18:00', freeHoursWeek: 5,
+      goal12m: 'Пример цели: новый доход, новый навык, свобода от найма',
+      babyDue: '',
     },
     settings: { theme: 'red', reviewDay: 0 /* воскресенье */, browserNotify: false },
     xp: { total: 0 },
@@ -457,44 +457,37 @@ function defaultState() {
     skills: seedSkills(),
     projects: seedProjects(),
     content: [],
-    contentStats: { subsGained: 0, tiktokSubs: 25, instaSubs: 122 },
+    contentStats: { subsGained: 0, tiktokSubs: 0, instaSubs: 0 },
     seasons: [seedSeason1()],
     finance: {
       incomes: [
-        { id: uid(), n: 'Основная работа (бариста)', sum: 60000 },
-        { id: uid(), n: 'Доход семьи (прочее)', sum: 50000 },
+        { id: uid(), n: 'Основной доход', sum: 50000 },
+        { id: uid(), n: 'Доп. доход', sum: 20000 },
       ],
       fixedExpenses: [
-        { id: uid(), n: 'Аренда / коммунальные', sum: 25000 },
-        { id: uid(), n: 'Платёж по кредиту', sum: 9900 },
-        { id: uid(), n: 'Платёж по кредитной карте', sum: 10000 },
+        { id: uid(), n: 'Аренда / коммунальные', sum: 20000 },
+        { id: uid(), n: 'Платёж 1', sum: 5000 },
+        { id: uid(), n: 'Платёж 2', sum: 5000 },
       ],
       varExpenses: [
-        { id: uid(), n: 'Еда', sum: 25000 },
-        { id: uid(), n: 'Транспорт и прочее', sum: 10000 },
+        { id: uid(), n: 'Еда', sum: 20000 },
+        { id: uid(), n: 'Транспорт и прочее', sum: 8000 },
       ],
       debts: [
-        { id: 'debt1', n: 'Кредит', balance: 84000, initialBalance: 84000, rate: 34.9,
-          minPay: 9900, payDay: 12, priority: 1, history: [] },
-        { id: 'debt2', n: 'Кредитная карта', balance: 130000, initialBalance: 130000, rate: 20,
-          minPay: 10000, payDay: 1, priority: 2, history: [] },
+        { id: 'debt1', n: 'Кредит (пример)', balance: 50000, initialBalance: 50000, rate: 20,
+          minPay: 5000, payDay: 10, priority: 1, history: [] },
+        { id: 'debt2', n: 'Карта (пример)', balance: 30000, initialBalance: 30000, rate: 25,
+          minPay: 3000, payDay: 1, priority: 2, history: [] },
       ],
-      cushion: { goal: 150000, current: 0 },
-      babyFund: { goal: 100000, current: 0, items: [
-        { id: uid(), n: 'Кроватка', cost: 15000, bought: false, pr: 'high', note: '' },
-        { id: uid(), n: 'Коляска', cost: 25000, bought: false, pr: 'high', note: '' },
-        { id: uid(), n: 'Одежда и пелёнки', cost: 10000, bought: false, pr: 'mid', note: '' },
-        { id: uid(), n: 'Резерв на роды', cost: 30000, bought: false, pr: 'high', note: '' },
-      ]},
+      cushion: { goal: 100000, current: 0 },
+      babyFund: { goal: 0, current: 0, items: [] },
       newIncome: [],   // {id, date, source, sum, type: content|service|product}
       extraPay: 3000,  // планируемый досрочный платёж в месяц (для сценария)
     },
     health: {},        // 'YYYY-MM-DD' → {sleep, energy, mood, steps, water, activity, note}
-    fitness: { startWeight: 96, goalMin: 78, goalMax: 82, weights: [], measures: [], workouts: [], lastPhoto: null },
+    fitness: { startWeight: 80, goalMin: 70, goalMax: 75, weights: [], measures: [], workouts: [], lastPhoto: null },
     family: {
-      dates: [
-        { id: uid(), n: 'Роды (ориентировочно)', date: '2026-10-25' },
-      ],
+      dates: [],
       log: [],         // {id, date, type, note} — время вдвоём, помощь, подготовка к ребёнку
       tasks: [],       // {id, t, done, cat}
     },
@@ -2080,16 +2073,16 @@ function rHealth() {
 
     <div class="grid cols2" style="margin-bottom:12px">
       <div class="card">
-        <div class="card-title">⚖ Вес · цель 78–82 кг</div>
+        <div class="card-title">⚖ Вес · цель ${F.goalMin}–${F.goalMax} кг</div>
         <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:8px">
           <div style="flex:1"><label class="f" style="margin-top:0">Сегодня, кг</label>
           <input class="f" type="number" step="0.1" id="wKg" value="${lastW && lastW.d === t ? lastW.kg : ''}" placeholder="${lastW ? lastW.kg : F.startWeight}"></div>
           <button class="btn primary small" id="wSave" style="margin-bottom:2px">Записать</button>
         </div>
-        ${lastW ? `<div class="card-note">Старт: ${F.startWeight} кг → сейчас: <b>${lastW.kg} кг</b> (${(lastW.kg - F.startWeight) <= 0 ? '' : '+'}${(lastW.kg - F.startWeight).toFixed(1)} кг) · до цели: ${Math.max(0, (lastW.kg - 82)).toFixed(1)} кг</div>` : `<div class="card-note">Старт: ${F.startWeight} кг. Взвешивайся раз в неделю, в одно время.</div>`}
+        ${lastW ? `<div class="card-note">Старт: ${F.startWeight} кг → сейчас: <b>${lastW.kg} кг</b> (${(lastW.kg - F.startWeight) <= 0 ? '' : '+'}${(lastW.kg - F.startWeight).toFixed(1)} кг) · до цели: ${Math.max(0, (lastW.kg - F.goalMax)).toFixed(1)} кг</div>` : `<div class="card-note">Старт: ${F.startWeight} кг. Взвешивайся раз в неделю, в одно время.</div>`}
         ${F.weights.length >= 2 ? svgLine(F.weights.slice(-26).map(w => ({ l: fmtDate(w.d), v: w.kg })), { color: 'var(--ok)', h: 130 }) : ''}
         <details class="adv"><summary>ожидаемый прогресс</summary>
-          <div style="font-size:12.5px;color:var(--text2);padding-top:6px">1 мес: ~94 кг · 3 мес: 89–91 · 6 мес: 84–86 · 12 мес: 78–82.<br>Темп ~0,5–0,7 кг/нед — нормальный. Быстрее не значит лучше.</div>
+          <div style="font-size:12.5px;color:var(--text2);padding-top:6px">Плавно, без рывков: ориентир ~0,5–0,7 кг в неделю от старта (${F.startWeight} кг) к цели (${F.goalMin}–${F.goalMax} кг). Быстрее не значит лучше.</div>
         </details>
       </div>
       <div class="card">
@@ -2762,8 +2755,8 @@ function subsModal() {
     <h3>Подписчики площадок</h3>
     <div class="msub">Обновляй раз в неделю — прирост считается автоматически.</div>
     <div class="frow">
-      <div><label class="f">TikTok (sh1k_a)</label><input class="f" type="number" id="msTt" value="${S.contentStats.tiktokSubs}"></div>
-      <div><label class="f">Instagram (sh1k_aa)</label><input class="f" type="number" id="msIg" value="${S.contentStats.instaSubs}"></div>
+      <div><label class="f">TikTok</label><input class="f" type="number" id="msTt" value="${S.contentStats.tiktokSubs}"></div>
+      <div><label class="f">Instagram</label><input class="f" type="number" id="msIg" value="${S.contentStats.instaSubs}"></div>
     </div>
     <div class="btn-row"><button class="btn primary" id="msSave">Сохранить</button><button class="btn" data-mclose="1">Отмена</button></div>`);
   $('#msSave').onclick = () => {
@@ -3047,7 +3040,7 @@ function renderOnboarding(step = 1) {
   onb.innerHTML = screens[step]();
 
   const collect = () => {
-    if (step === 1) { onbData.name = $('#ob_name').value.trim() || 'Александр'; onbData.charName = $('#ob_char').value.trim() || 'SH1KA'; }
+    if (step === 1) { onbData.name = $('#ob_name').value.trim() || 'Герой'; onbData.charName = $('#ob_char').value.trim() || 'HERO'; }
     if (step === 2) { onbData.workHours = $('#ob_work').value; onbData.freeHoursWeek = +$('#ob_free').value || 5; }
     if (step === 3) { onbData.goal12m = $('#ob_goal').value; }
     if (step === 4) {
@@ -3097,8 +3090,8 @@ function renderOnboarding(step = 1) {
 }
 
 /* ════════ 25b. ФИТНЕС-МОДУЛЬ ════════
-   Источник: персональный фитнес-план на 12 месяцев (96 кг → 78–82 кг).
-   Особенность: операция на лёгком — первые 4–6 недель без отказных подходов. */
+   12-месячный план набора формы с постепенной прогрессией.
+   Первые 4–6 недель — без отказных подходов (щадящий старт, по самочувствию). */
 
 const WORKOUTS = [
   { id: 'w1', n: 'Д1 · Грудь + трицепс', ex: ['Жим штанги 4×6–8', 'Жим гантелей 3×10', 'Разводка 3×12', 'Отжимания 3 подхода', 'Французский жим 3×10', 'Разгибания на блоке 3×12'] },
@@ -3112,7 +3105,7 @@ const WORKOUTS = [
 /* Гарантирует наличие блока фитнеса в старых сохранениях */
 function fitnessState() {
   if (!S.fitness) {
-    S.fitness = { startWeight: 96, goalMin: 78, goalMax: 82, weights: [], measures: [], workouts: [], lastPhoto: null };
+    S.fitness = { startWeight: 80, goalMin: 70, goalMax: 75, weights: [], measures: [], workouts: [], lastPhoto: null };
   }
   return S.fitness;
 }
@@ -3206,7 +3199,43 @@ function measureModal() {
 
 let S = loadState() || defaultState();
 
+/* ── Символический замок на вход ──────────────────────────────────
+   Это НЕ настоящая защита данных: сайт статический и лежит на GitHub
+   открытым текстом, любой при желании прочитает исходники и увидит
+   этот же пароль прямо здесь. Единственная цель — не дать случайному
+   человеку по ссылке сходу открыть личные данные. Хочешь сменить
+   пароль — просто впиши новое значение сюда и сохрани файл. */
+const APP_PASSWORD = 'ego2026';
+const LOCK_KEY = 'project_ego_unlocked';
+
 function init() {
+  let unlocked;
+  try { unlocked = localStorage.getItem(LOCK_KEY) === '1'; } catch (e) { unlocked = true; }
+  if (unlocked) {
+    $('#boot').classList.remove('hidden');
+    initApp();
+    return;
+  }
+  const gate = $('#lockGate');
+  gate.classList.remove('hidden');
+  const form = $('#lockForm'), input = $('#lockInput'), err = $('#lockError');
+  input.focus();
+  form.onsubmit = e => {
+    e.preventDefault();
+    if (input.value === APP_PASSWORD) {
+      try { localStorage.setItem(LOCK_KEY, '1'); } catch (e) {}
+      gate.classList.add('hidden');
+      $('#boot').classList.remove('hidden');
+      initApp();
+    } else {
+      err.classList.remove('hidden');
+      input.value = '';
+      input.focus();
+    }
+  };
+}
+
+function initApp() {
   document.documentElement.dataset.theme = S.settings.theme || 'red';
 
   // Суточный снимок: раз в день сохраняем вчерашнее состояние отдельным ключом.

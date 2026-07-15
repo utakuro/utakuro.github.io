@@ -74,6 +74,13 @@ h1,h2,h3 { font-weight: 700; letter-spacing: .3px; }
 .boot-logo span { color: var(--accent); text-shadow: var(--glow); }
 .boot-sub { color: var(--text3); font-size: 13px; letter-spacing: 2px; }
 
+/* ── Замок на вход (символический) ────────────────────────────── */
+.lock-gate { z-index: 1000; gap: 18px; }
+.lock-form { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 220px; }
+.lock-input.f { text-align: center; letter-spacing: 2px; }
+.lock-form .btn { width: 100%; }
+.lock-error { color: var(--danger); font-size: 12.5px; letter-spacing: .5px; }
+
 /* ── Каркас ───────────────────────────────────────────────────── */
 .app {
   display: grid;

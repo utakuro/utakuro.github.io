@@ -69,9 +69,20 @@
 <div class="toasts" id="toasts"></div>
 
 <!-- Экран загрузки / онбординга рендерится в #app из app.js -->
-<div id="boot" class="boot">
+<div id="boot" class="boot hidden">
   <div class="boot-logo">PROJECT <span>EGO</span></div>
   <div class="boot-sub">Загрузка системы…</div>
+</div>
+
+<!-- Символический замок: отпугнуть случайного зрителя, не настоящая защита —
+     весь код и так открыт на GitHub, пароль просто не даёт войти с ходу. -->
+<div id="lockGate" class="boot lock-gate hidden">
+  <div class="boot-logo">PROJECT <span>EGO</span></div>
+  <form id="lockForm" class="lock-form" autocomplete="off">
+    <input id="lockInput" class="f lock-input" type="password" placeholder="Пароль" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <button type="submit" class="btn primary">Войти</button>
+  </form>
+  <div id="lockError" class="lock-error hidden">Неверный пароль</div>
 </div>
 
 <script src="app.js"></script>
