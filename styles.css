@@ -434,3 +434,77 @@ table.t tr:last-child td { border-bottom: none; }
 @media (min-width: 861px) {
   .nav-item { position: relative; }
 }
+
+/* ════════ Платформа 2.0: комфорт, интересы, команда ════════ */
+/* Масштаб текста (базовые размеры × --font-scale; при scale=1 всё как было) */
+body { font-size: calc(15px * var(--font-scale, 1)); }
+.screen-title { font-size: calc(19px * var(--font-scale, 1)); }
+.screen-sub { font-size: calc(12.5px * var(--font-scale, 1)); }
+.card-title { font-size: calc(11.5px * var(--font-scale, 1)); }
+.card-note { font-size: calc(12px * var(--font-scale, 1)); }
+.btn { font-size: calc(13.5px * var(--font-scale, 1)); }
+.btn.small { font-size: calc(12px * var(--font-scale, 1)); }
+.nav-item { font-size: calc(13.5px * var(--font-scale, 1)); }
+input.f, select.f, textarea.f { font-size: calc(13.5px * var(--font-scale, 1)); }
+label.f { font-size: calc(12px * var(--font-scale, 1)); }
+.quest-name { font-size: calc(14px * var(--font-scale, 1)); }
+
+/* Плотность: просторный режим — больше воздуха */
+[data-density="roomy"] .card { padding: 20px; }
+[data-density="roomy"] .quest { padding: 13px 14px; }
+[data-density="roomy"] .nav-item { padding: 11px 12px; }
+[data-density="roomy"] .btn { padding: 11px 18px; }
+
+/* Простой режим: крупнее контролы, прячем продвинутое */
+body.simple .btn { padding: 12px 20px; }
+body.simple .nav-item { padding: 12px 14px; }
+body.simple .iconbtn { width: 40px; height: 40px; font-size: 18px; }
+body.simple details.adv, body.simple .adv { display: none !important; }
+
+/* Сетка интересов (онбординг + настройки) */
+.int-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-top: 10px; }
+.int-card {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 14px 8px; border-radius: 12px; cursor: pointer;
+  background: var(--bg4); border: 1.5px solid var(--line);
+  text-align: center; transition: border-color .15s, background .15s, transform .1s;
+  user-select: none;
+}
+.int-card:hover { border-color: var(--accent2); }
+.int-card:active { transform: scale(.97); }
+.int-card.sel { border-color: var(--accent); background: var(--bg3); box-shadow: var(--glow); }
+.int-ico { font-size: calc(22px * var(--font-scale, 1)); }
+.int-n { font-size: calc(12.5px * var(--font-scale, 1)); color: var(--text); font-weight: 600; line-height: 1.25; }
+
+/* Сегментированный переключатель */
+.seg { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.seg-btn {
+  padding: 7px 14px; border-radius: 9px; cursor: pointer;
+  background: var(--bg4); border: 1px solid var(--line); color: var(--text2);
+  font-family: inherit; font-size: calc(12.5px * var(--font-scale, 1)); font-weight: 600;
+  user-select: none; transition: background .15s, border-color .15s, color .15s;
+}
+.seg-btn:hover { border-color: var(--accent2); color: var(--text); }
+.seg-btn.sel { background: var(--bg3); border-color: var(--accent); color: var(--text); box-shadow: var(--glow); }
+.checkline { display: flex; align-items: center; gap: 9px; font-size: calc(13px * var(--font-scale, 1)); color: var(--text); cursor: pointer; }
+.checkline input { width: 18px; height: 18px; flex: none; accent-color: var(--accent); }
+
+/* Экран «Команда» */
+.team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.persona-card {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 14px; border-radius: 14px;
+  background: var(--bg2); border: 1px solid var(--line);
+}
+.persona-ava {
+  width: 46px; height: 46px; flex: none; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; background: var(--bg4); border: 1px solid var(--line);
+}
+.persona-body { flex: 1; min-width: 0; }
+.persona-name { font-weight: 700; font-size: calc(15px * var(--font-scale, 1)); display: flex; align-items: center; gap: 6px; }
+.persona-seed { font-size: 9.5px; letter-spacing: .5px; text-transform: uppercase; color: var(--text3); border: 1px solid var(--line); border-radius: 6px; padding: 1px 5px; }
+.persona-role { font-size: calc(12px * var(--font-scale, 1)); color: var(--accent); margin: 2px 0 6px; }
+.persona-mission { font-size: calc(12.5px * var(--font-scale, 1)); color: var(--text2); line-height: 1.45; }
+.persona-tone { font-size: calc(11.5px * var(--font-scale, 1)); color: var(--text3); margin-top: 6px; }
+.persona-actions { display: flex; flex-direction: column; gap: 6px; flex: none; }

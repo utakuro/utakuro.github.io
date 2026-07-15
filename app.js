@@ -97,6 +97,17 @@ function migrate(st) {
   // Точка расширения: при изменении схемы данных повышаем version и дополняем поля.
   const def = defaultState();
   for (const k of Object.keys(def)) if (!(k in st)) st[k] = def[k];
+  // Платформа 2.0: бережно доработать вложенные поля старых сохранений, ничего не теряя.
+  if (!st.prefs || typeof st.prefs !== 'object') st.prefs = def.prefs;
+  if (!Array.isArray(st.prefs.interests)) st.prefs.interests = INTERESTS.map(i => i.key);
+  if (!st.prefs.comfort || typeof st.prefs.comfort !== 'object')
+    st.prefs.comfort = { fontScale: 1, density: 'normal', simpleMode: false, tone: 'coach' };
+  if (typeof st.prefs.comfort.fontScale !== 'number') st.prefs.comfort.fontScale = 1;
+  if (!st.prefs.comfort.density) st.prefs.comfort.density = 'normal';
+  if (typeof st.prefs.comfort.simpleMode !== 'boolean') st.prefs.comfort.simpleMode = false;
+  if (typeof st.prefs.depth !== 'string') st.prefs.depth = 'full';
+  if (typeof st.prefs.onboardedPrefs !== 'boolean') st.prefs.onboardedPrefs = false;
+  if (!Array.isArray(st.personas) || !st.personas.length) st.personas = seedPersonas();
   return st;
 }
 
@@ -216,6 +227,7 @@ const NAV_ITEMS = [
   { key: 'content', n: 'Контент', ico: '🎬' }, { key: 'finance', n: 'Финансы', ico: '💰' },
   { key: 'health', n: 'Здоровье', ico: '💪' }, { key: 'family', n: 'Семья', ico: '❤' },
   { key: 'analytics', n: 'Аналитика', ico: '📊' }, { key: 'achieve', n: 'Достижения', ico: '🏆' },
+  { key: 'team', n: 'Команда', ico: '👥' },
   { key: 'settings', n: 'Настройки', ico: '⚙' },
 ];
 
@@ -498,6 +510,14 @@ function defaultState() {
     log: [],           // {d, xp, cat, note} — журнал начислений XP
     flags: { heroReturns: 0, offersSent: 0, leads: 0, debtFreezeDays: 0, practiceMinutes: 0, demoCleared: false },
     notices: { dismissed: {} },
+    // ── Платформа 2.0 (аддитивно, не ломает личный инстанс) ──
+    prefs: {
+      interests: INTERESTS.map(i => i.key),   // по умолчанию всё включено
+      depth: 'full',                          // 'light' | 'full'
+      onboardedPrefs: false,
+      comfort: { fontScale: 1, density: 'normal', simpleMode: false, tone: 'coach' },
+    },
+    personas: seedPersonas(),
   };
 }
 
@@ -1384,7 +1404,8 @@ function renderHud() {
 }
 
 function renderNav() {
-  $('#nav').innerHTML = NAV_ITEMS.map(i => `
+  const vis = visibleScreens();
+  $('#nav').innerHTML = NAV_ITEMS.filter(i => vis.includes(i.key)).map(i => `
     <div class="nav-item ${S.screen === i.key ? 'active' : ''}" data-nav="${i.key}">
       <span class="nav-ico">${i.ico}</span><span>${i.n}</span>
     </div>`).join('');
@@ -1404,9 +1425,11 @@ function renderAll() {
   const R = {
     home: rHome, today: rToday, quests: rQuests, career: rCareer, skills: rSkills,
     projects: rProjects, content: rContent, finance: rFinance, health: rHealth,
-    family: rFamily, analytics: rAnalytics, achieve: rAchieve, settings: rSettings,
+    family: rFamily, analytics: rAnalytics, achieve: rAchieve, team: rTeam, settings: rSettings,
   };
-  (R[S.screen] || rHome)();
+  // Экран прячется, если сфера отключена в интересах — тогда показываем Главную.
+  const target = (R[S.screen] && visibleScreens().includes(S.screen)) ? S.screen : 'home';
+  (R[target] || rHome)();
 }
 
 /* ── Главная ── */
@@ -2371,6 +2394,35 @@ function rSettings() {
     </div>
 
     <div class="card" style="margin-bottom:14px">
+      <div class="card-title">Удобство</div>
+      <label class="f">Размер текста</label>
+      <div class="seg">${[['0.9', 'Меньше'], ['1', 'Обычный'], ['1.15', 'Крупнее'], ['1.3', 'Крупный']].map(([v, l]) => `<button type="button" class="seg-btn ${String(S.prefs.comfort.fontScale) === v ? 'sel' : ''}" data-setfont="${v}">${l}</button>`).join('')}</div>
+      <label class="f" style="margin-top:10px">Плотность интерфейса</label>
+      <div class="seg">${[['normal', 'Обычная'], ['roomy', 'Просторная']].map(([v, l]) => `<button type="button" class="seg-btn ${S.prefs.comfort.density === v ? 'sel' : ''}" data-setdens="${v}">${l}</button>`).join('')}</div>
+      <label class="checkline" style="margin-top:12px"><input type="checkbox" id="setSimple" ${S.prefs.comfort.simpleMode ? 'checked' : ''}> Простой режим — крупнее кнопки, меньше сложных элементов</label>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title">Мои сферы</div>
+      <div class="card-note" style="margin-bottom:8px">Отмеченные сферы видны в меню. Снимешь отметку — экран скроется (данные не удаляются).</div>
+      <div class="int-grid">
+        ${INTERESTS.map(it => `<div class="int-card ${S.prefs.interests.includes(it.key) ? 'sel' : ''}" data-setint="${it.key}">
+          <div class="int-ico">${it.ico}</div><div class="int-n">${esc(it.n)}</div></div>`).join('')}
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title">👥 Команда и обмен</div>
+      <div class="card-note" style="margin-bottom:8px">Персонажей-помощников можно собрать под себя. Готовую команду или «шаблон мира» (сферы + команда, без личных цифр) — передать другу файлом.</div>
+      <div class="btn-row" style="margin:0">
+        <button class="btn small" data-act="goTeam">Открыть команду →</button>
+        <button class="btn small" id="btnExportTpl">🌍 Экспорт шаблона мира</button>
+        <button class="btn small" id="btnImportTpl">📥 Импорт шаблона</button>
+        <input type="file" id="importTplFile" accept=".json" style="display:none">
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
       <div class="card-title">Уведомления браузера (необязательно)</div>
       <div class="card-note" style="margin-bottom:8px">Приложение полностью работает и без них. Внутренние напоминания всегда включены.</div>
       <button class="btn small" id="notifBtn">${S.settings.browserNotify ? '✔ Разрешены' : 'Запросить разрешение'}</button>
@@ -2433,6 +2485,32 @@ function rSettings() {
     document.documentElement.dataset.theme = el.dataset.settheme;
     saveState(); rSettings();
   });
+  // Комфорт
+  $$('[data-setfont]').forEach(el => el.onclick = () => {
+    prefsState(); S.prefs.comfort.fontScale = parseFloat(el.dataset.setfont) || 1;
+    saveState(); applyComfort(); rSettings();
+  });
+  $$('[data-setdens]').forEach(el => el.onclick = () => {
+    prefsState(); S.prefs.comfort.density = el.dataset.setdens;
+    saveState(); applyComfort(); rSettings();
+  });
+  if ($('#setSimple')) $('#setSimple').onchange = e => {
+    prefsState(); S.prefs.comfort.simpleMode = e.target.checked;
+    saveState(); applyComfort(); rSettings();
+  };
+  // Сферы (интересы)
+  $$('[data-setint]').forEach(el => el.onclick = () => {
+    prefsState();
+    const k = el.dataset.setint;
+    const i = S.prefs.interests.indexOf(k);
+    if (i >= 0) S.prefs.interests.splice(i, 1); else S.prefs.interests.push(k);
+    saveState(); renderNav(); rSettings();
+  });
+  // Команда и обмен
+  if ($('[data-act="goTeam"]')) $('[data-act="goTeam"]').onclick = () => go('team');
+  $('#btnExportTpl').onclick = exportTemplate;
+  $('#btnImportTpl').onclick = () => $('#importTplFile').click();
+  $('#importTplFile').onchange = e => { if (e.target.files[0]) importTemplate(e.target.files[0]); };
   $('#notifBtn').onclick = async () => {
     if (!('Notification' in window)) { toast('Браузер не поддерживает уведомления', 'warn'); return; }
     const perm = await Notification.requestPermission();
@@ -2961,9 +3039,238 @@ function newSeasonModal(suggestedName = '') {
   };
 }
 
+/* ════════ 24b. ПЛАТФОРМА 2.0 — адаптивность, персонажи, обмен ════════
+   Аддитивный слой поверх личного приложения. Личный инстанс не меняется:
+   по умолчанию все интересы включены → видны все экраны, как раньше.
+   Сюда встанет и будущий LLM (см. PLATFORMA-2.0.md): всё рисуется из
+   prefs/layout, не важно, собрало их правило сейчас или модель потом. */
+
+// Жизненные сферы. Каждая включает набор экранов навигации.
+const INTERESTS = [
+  { key: 'career',     n: 'Карьера и рост',        ico: '🗺', screens: ['career', 'skills', 'projects'] },
+  { key: 'discipline', n: 'Дисциплина и привычки', ico: '⚔', screens: ['quests'] },
+  { key: 'content',    n: 'Контент и творчество',  ico: '🎬', screens: ['content'] },
+  { key: 'finance',    n: 'Финансы и долги',        ico: '💰', screens: ['finance'] },
+  { key: 'fitness',    n: 'Спорт и тело',           ico: '💪', screens: ['health'] },
+  { key: 'family',     n: 'Семья и близкие',        ico: '❤', screens: ['family'] },
+  { key: 'analytics',  n: 'Аналитика и прогресс',   ico: '📊', screens: ['analytics'] },
+];
+// Экраны, которые есть всегда, независимо от интересов.
+const CORE_SCREENS = ['home', 'today', 'achieve', 'team', 'settings'];
+
+// Гарант блока prefs в любом состоянии (как fitnessState для фитнеса).
+function prefsState() {
+  if (!S.prefs || typeof S.prefs !== 'object') S.prefs = {};
+  const p = S.prefs;
+  if (!Array.isArray(p.interests)) p.interests = INTERESTS.map(i => i.key);
+  if (!p.comfort || typeof p.comfort !== 'object') p.comfort = {};
+  const c = p.comfort;
+  if (typeof c.fontScale !== 'number') c.fontScale = 1;
+  if (!c.density) c.density = 'normal';
+  if (typeof c.simpleMode !== 'boolean') c.simpleMode = false;
+  if (!c.tone) c.tone = 'coach';
+  if (typeof p.depth !== 'string') p.depth = 'full';
+  if (typeof p.onboardedPrefs !== 'boolean') p.onboardedPrefs = false;
+  return p;
+}
+
+// Какие экраны показывать = ядро + экраны выбранных интересов (в порядке NAV_ITEMS).
+function visibleScreens() {
+  const p = prefsState();
+  const set = new Set(CORE_SCREENS);
+  INTERESTS.forEach(it => { if (p.interests.includes(it.key)) it.screens.forEach(s => set.add(s)); });
+  return NAV_ITEMS.map(i => i.key).filter(k => set.has(k));
+}
+
+// Применить комфорт-настройки к DOM (шрифт, плотность, простой режим, глубина).
+function applyComfort() {
+  const p = prefsState();
+  const root = document.documentElement;
+  root.style.setProperty('--font-scale', String(p.comfort.fontScale || 1));
+  root.dataset.density = p.comfort.density || 'normal';
+  root.dataset.depth = p.depth || 'full';
+  document.body.classList.toggle('simple', !!p.comfort.simpleMode);
+}
+
+// ── Персонажи (команда) — сид из 8 агентов ЭГО-ШТАБА ──
+function seedPersonas() {
+  const p = (id, emoji, name, role, mission, tone, success, nag) =>
+    ({ id, emoji, name, role, mission, tone, phrases: { success, nag }, custom: false });
+  return [
+    p('rin', '🛡', 'Рин', 'Страж Сайта', 'Следить, чтобы приложение было живо и открывалось.', 'спокойная, ироничная',
+      ['Пост держу, на горизонте чисто 😏', 'Скучно — значит, всё работает.'],
+      ['Так-так. Что-то не так — разберём по шагам.']),
+    p('akane', '⚔', 'Аканэ', 'Страж Кода', 'Проверять качество и докладывать о поломках.', 'строгая, прямая',
+      ['Всё зелёное. Так и должно быть.', 'Принято. Достойно выпуска.'],
+      ['Ошибке пощады не будет. Разбор:']),
+    p('lara', '📜', 'Лара', 'Летописец', 'Хранить историю и напоминать о резервных копиях.', 'тёплая, бережная',
+      ['Архив создан, история в безопасности ✨', 'Ещё одна страница летописи сохранена.'],
+      ['Давно не было резервной копии — сделаем?']),
+    p('miya', '🎬', 'Мия', 'Продюсер', 'Держать фокус недели: не больше трёх приоритетов.', 'энергичная, спортивная',
+      ['Собрались. Вот наш фокус:', 'Новая неделя — новый матч. План на игру:'],
+      ['Три приоритета — не больше. Что главное?']),
+    p('sora', '✍', 'Сора', 'Сценарист', 'Подсказывать идеи, чтобы вопрос «что дальше?» не останавливал.', 'лёгкая, творческая',
+      ['Так, у меня есть кое-что для тебя…', 'Слушай, эта идея сама просится в дело:'],
+      ['Банк идей пуст — добавим свежую?']),
+    p('yuki', '🔮', 'Юки', 'Мудрец', 'Отвечать на вопросы и давать спокойный совет.', 'мягкая, вдумчивая',
+      ['Хороший вопрос. Подумаем вместе.', 'Иногда ответ уже внутри — помогу нащупать.'],
+      ['Спроси — разберёмся не спеша.']),
+    p('toki', '⏰', 'Токи', 'Диспетчер', 'Держать график живым: напоминать вовремя и настойчиво.', 'собранная, неотступная',
+      ['Планируем неделю?', 'Время свериться с графиком на неделю вперёд.'],
+      ['Ты уже начал(а)? Не тороплю, но и не забуду.']),
+    p('mei', '🗂', 'Мэй', 'Куратор', 'Подводить итог дня и честно докладывать, что не так.', 'ровная, внимательная',
+      ['Смена закрыта. Вот как прошёл день:', 'Подвожу черту — коротко и по делу:'],
+      ['Пора подвести итог дня.']),
+  ];
+}
+
+function personasState() {
+  if (!Array.isArray(S.personas) || !S.personas.length) S.personas = seedPersonas();
+  return S.personas;
+}
+
+/* ── Экран «Команда» ── */
+function rTeam() {
+  const list = personasState();
+  $('#screen').innerHTML = `
+    <h1 class="screen-title">Команда</h1>
+    <div class="screen-sub">Твои помощники. Их можно редактировать, копировать, удалять и создавать своих — под себя.</div>
+    <div class="btn-row" style="margin:0 0 12px">
+      <button class="btn primary small" data-act="personaNew">+ Новый персонаж</button>
+      <button class="btn small" data-act="teamExport">💾 Экспорт команды</button>
+      <button class="btn small" data-act="teamImport">📥 Импорт команды</button>
+      <input type="file" id="teamImportFile" accept=".json" style="display:none">
+    </div>
+    <div class="team-grid">
+      ${list.map(pr => `
+        <div class="persona-card">
+          <div class="persona-ava">${esc(pr.emoji || '🙂')}</div>
+          <div class="persona-body">
+            <div class="persona-name">${esc(pr.name)}${pr.custom ? '' : ' <span class="persona-seed">штаб</span>'}</div>
+            <div class="persona-role">${esc(pr.role || '')}</div>
+            <div class="persona-mission">${esc(pr.mission || '')}</div>
+            ${pr.tone ? `<div class="persona-tone">тон: ${esc(pr.tone)}</div>` : ''}
+          </div>
+          <div class="persona-actions">
+            <button class="iconbtn" data-personaedit="${pr.id}" title="Редактировать">✎</button>
+            <button class="iconbtn" data-personadup="${pr.id}" title="Дублировать">⧉</button>
+            <button class="iconbtn" data-personadel="${pr.id}" title="Удалить">✕</button>
+          </div>
+        </div>`).join('')}
+    </div>`;
+  $('[data-act="personaNew"]').onclick = () => personaEditor(null);
+  $('[data-act="teamExport"]').onclick = exportTeam;
+  $('[data-act="teamImport"]').onclick = () => $('#teamImportFile').click();
+  $('#teamImportFile').onchange = e => { if (e.target.files[0]) importTeam(e.target.files[0]); };
+  $$('[data-personaedit]').forEach(el => el.onclick = () => personaEditor(el.dataset.personaedit));
+  $$('[data-personadup]').forEach(el => el.onclick = () => {
+    const src = personasState().find(x => x.id === el.dataset.personadup);
+    if (!src) return;
+    const copy = JSON.parse(JSON.stringify(src));
+    copy.id = uid(); copy.name = src.name + ' (копия)'; copy.custom = true;
+    S.personas.push(copy); saveState(); rTeam(); toast('Персонаж скопирован', 'ok');
+  });
+  $$('[data-personadel]').forEach(el => el.onclick = () => {
+    const pr = personasState().find(x => x.id === el.dataset.personadel);
+    if (!pr) return;
+    confirmModal('Удалить персонажа', `Удалить «${esc(pr.name)}» из команды?`, () => {
+      S.personas = S.personas.filter(x => x.id !== pr.id); saveState(); rTeam(); toast('Персонаж удалён', 'ok');
+    });
+  });
+}
+
+function personaEditor(id) {
+  const isNew = !id;
+  const pr = isNew
+    ? { id: uid(), emoji: '🙂', name: '', role: '', mission: '', tone: '', phrases: { success: [], nag: [] }, custom: true }
+    : JSON.parse(JSON.stringify(personasState().find(x => x.id === id) || {}));
+  if (!pr.id) return;
+  const j = a => (Array.isArray(a) ? a : []).join('\n');
+  openModal(`
+    <h3>${isNew ? 'Новый персонаж' : 'Редактирование'}</h3>
+    <div class="frow">
+      <div style="max-width:96px"><label class="f">Эмодзи</label><input class="f" id="pe_emoji" maxlength="4" value="${esc(pr.emoji || '')}"></div>
+      <div><label class="f">Имя</label><input class="f" id="pe_name" value="${esc(pr.name || '')}"></div>
+    </div>
+    <label class="f">Роль</label><input class="f" id="pe_role" value="${esc(pr.role || '')}">
+    <label class="f">Миссия / характер</label><textarea class="f" id="pe_mission" style="min-height:64px">${esc(pr.mission || '')}</textarea>
+    <label class="f">Тон (как говорит)</label><input class="f" id="pe_tone" value="${esc(pr.tone || '')}">
+    <label class="f">Фразы поддержки (по одной на строку)</label>
+    <textarea class="f" id="pe_success" style="min-height:64px">${esc(j(pr.phrases && pr.phrases.success))}</textarea>
+    <label class="f">Фразы-напоминания (по одной на строку)</label>
+    <textarea class="f" id="pe_nag" style="min-height:64px">${esc(j(pr.phrases && pr.phrases.nag))}</textarea>
+    <div class="btn-row"><button class="btn primary" id="pe_save">Сохранить</button><button class="btn" data-mclose="1">Отмена</button></div>`);
+  $('#pe_save').onclick = () => {
+    const name = $('#pe_name').value.trim();
+    if (!name) { toast('Впиши имя персонажа', 'warn'); return; }
+    const lines = v => v.split('\n').map(s => s.trim()).filter(Boolean);
+    const rec = {
+      id: pr.id, emoji: $('#pe_emoji').value.trim() || '🙂', name,
+      role: $('#pe_role').value.trim(), mission: $('#pe_mission').value.trim(),
+      tone: $('#pe_tone').value.trim(),
+      phrases: { success: lines($('#pe_success').value), nag: lines($('#pe_nag').value) },
+      custom: true,
+    };
+    const arr = personasState();
+    const idx = arr.findIndex(x => x.id === pr.id);
+    if (idx >= 0) arr[idx] = rec; else arr.push(rec);
+    saveState(); closeModal(); rTeam(); toast('Сохранено', 'ok');
+  };
+}
+
+// ── Обмен: команда и «шаблон мира» (без личных данных) ──
+function downloadJSON(obj, filename) {
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function exportTeam() {
+  downloadJSON({ egoTeam: true, version: 1, personas: personasState() }, 'ego-команда-' + todayStr() + '.json');
+  toast('Команда сохранена в загрузки', 'ok');
+}
+function importTeam(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      const src = data && (data.egoTeam || data.egoTemplate) ? data.personas : (Array.isArray(data && data.personas) ? data.personas : null);
+      if (!Array.isArray(src)) throw new Error('Не похоже на файл команды');
+      const clean = src.filter(pr => pr && pr.name).map(pr => ({
+        id: pr.id || uid(), emoji: pr.emoji || '🙂', name: String(pr.name),
+        role: pr.role || '', mission: pr.mission || '', tone: pr.tone || '',
+        phrases: { success: (pr.phrases && pr.phrases.success) || [], nag: (pr.phrases && pr.phrases.nag) || [] },
+        custom: true,
+      }));
+      if (!clean.length) throw new Error('В файле нет персонажей');
+      S.personas = clean; saveState(); rTeam(); toast('Команда импортирована (' + clean.length + ')', 'ok');
+    } catch (e) { toast('⚠ Файл не распознан: ' + e.message, 'warn'); }
+  };
+  reader.readAsText(file);
+}
+function exportTemplate() {
+  downloadJSON({ egoTemplate: true, version: 1, prefs: prefsState(), personas: personasState() }, 'ego-шаблон-' + todayStr() + '.json');
+  toast('Шаблон мира сохранён (без личных данных)', 'ok');
+}
+function importTemplate(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (!data || !data.egoTemplate) throw new Error('Не похоже на файл шаблона');
+      if (data.prefs && typeof data.prefs === 'object') { S.prefs = data.prefs; prefsState(); }
+      if (Array.isArray(data.personas) && data.personas.length) S.personas = data.personas;
+      saveState(); applyComfort(); renderAll(); toast('Шаблон применён', 'ok');
+    } catch (e) { toast('⚠ ' + e.message, 'warn'); }
+  };
+  reader.readAsText(file);
+}
+
 /* ════════ 25. ОНБОРДИНГ (мастер первого запуска) ════════ */
 
-const ONB_STEPS = 8;
+const ONB_STEPS = 10;
 let onbData = {};
 
 function renderOnboarding(step = 1) {
@@ -3027,6 +3334,19 @@ function renderOnboarding(step = 1) {
       <label class="f">Название первого квеста</label>
       <input class="f" id="ob_q" value="${esc(onbData.firstQuest ?? 'Открыть PROJECT EGO завтра и выбрать режим дня')}">
       <div class="info-box" style="margin-top:10px">Также я добавил несколько демо-квестов для примера — их можно удалить в настройках одной кнопкой.</div>`),
+    9: () => wrap('Что тебе важно', 'Отметь сферы, которые хочешь видеть. Остальные скроем — их можно вернуть в настройках в любой момент.', `
+      <div class="int-grid" id="ob_intGrid">
+        ${INTERESTS.map(it => `<div class="int-card ${(onbData.interests ?? INTERESTS.map(x => x.key)).includes(it.key) ? 'sel' : ''}" data-int="${it.key}">
+          <div class="int-ico">${it.ico}</div><div class="int-n">${esc(it.n)}</div></div>`).join('')}
+      </div>
+      <div class="info-box" style="margin-top:10px">Ничего не отметишь — покажем всё. Меньше сфер — проще экран.</div>`),
+    10: () => wrap('Удобство', 'Настроим под себя — всё можно поменять позже в настройках.', `
+      <label class="f">Размер текста</label>
+      <div class="seg" id="ob_font">${[['0.9', 'Меньше'], ['1', 'Обычный'], ['1.15', 'Крупнее'], ['1.3', 'Крупный']].map(([v, l]) => `<button type="button" class="seg-btn ${String(onbData.fontScale ?? '1') === v ? 'sel' : ''}" data-obfont="${v}">${l}</button>`).join('')}</div>
+      <label class="f" style="margin-top:12px">Плотность интерфейса</label>
+      <div class="seg" id="ob_dens">${[['normal', 'Обычная'], ['roomy', 'Просторная']].map(([v, l]) => `<button type="button" class="seg-btn ${(onbData.density ?? 'normal') === v ? 'sel' : ''}" data-obdens="${v}">${l}</button>`).join('')}</div>
+      <label class="checkline" style="margin-top:14px"><input type="checkbox" id="ob_simple" ${onbData.simpleMode ? 'checked' : ''}> Простой режим — крупнее кнопки, меньше сложных элементов</label>
+      <div class="info-box" style="margin-top:10px">Подходит для любого возраста: чем крупнее и проще, тем спокойнее.</div>`),
   };
 
   $('#app').classList.add('hidden');
@@ -3054,6 +3374,8 @@ function renderOnboarding(step = 1) {
       S.finance.babyFund.current = +$('#ob_baby').value || 0;
     }
     if (step === 8) { onbData.firstQuest = $('#ob_q').value.trim(); }
+    if (step === 9) { onbData.interests = $$('#ob_intGrid .int-card.sel').map(e => e.dataset.int); }
+    if (step === 10) { onbData.simpleMode = $('#ob_simple') ? $('#ob_simple').checked : false; }
   };
 
   if ($('#onbBack')) $('#onbBack').onclick = () => { collect(); renderOnboarding(step - 1); };
@@ -3061,6 +3383,15 @@ function renderOnboarding(step = 1) {
     onbData.energy = +el.dataset.obe;
     $$('[data-obe]').forEach(x => x.classList.remove('sel'));
     el.classList.add('sel');
+  });
+  $$('[data-int]').forEach(el => el.onclick = () => el.classList.toggle('sel'));
+  $$('[data-obfont]').forEach(el => el.onclick = () => {
+    $$('[data-obfont]').forEach(x => x.classList.remove('sel'));
+    el.classList.add('sel'); onbData.fontScale = el.dataset.obfont;
+  });
+  $$('[data-obdens]').forEach(el => el.onclick = () => {
+    $$('[data-obdens]').forEach(x => x.classList.remove('sel'));
+    el.classList.add('sel'); onbData.density = el.dataset.obdens;
   });
 
   $('#onbNext').onclick = () => {
@@ -3074,6 +3405,14 @@ function renderOnboarding(step = 1) {
     S.profile.goal12m = onbData.goal12m || S.profile.goal12m;
     if (onbData.energy) { getDay().energy = onbData.energy; saveHealth(todayStr(), { energy: onbData.energy }); }
     if (onbData.firstQuest) createQuest({ name: onbData.firstQuest, cat: 'story', diff: 'E', desc: 'Первый шаг нового пути', mini: 'Просто открыть приложение' });
+    // Платформа 2.0: интересы и комфорт из шагов 9–10
+    prefsState();
+    S.prefs.interests = (onbData.interests && onbData.interests.length) ? onbData.interests : INTERESTS.map(i => i.key);
+    S.prefs.comfort.fontScale = parseFloat(onbData.fontScale || '1') || 1;
+    S.prefs.comfort.density = onbData.density || 'normal';
+    S.prefs.comfort.simpleMode = !!onbData.simpleMode;
+    S.prefs.onboardedPrefs = true;
+    applyComfort();
     S.quests.push(...seedDemoQuests());
     addIdea({ t: 'Сделать серию AI-обложек в стиле Solo Leveling для своих роликов', cat: 'Контент', benefit: 'Единый стиль канала', cost: '~3 часа', demo: true });
     createContent({ topic: 'Бариста решил стать AI-разработчиком. День 1', rubric: RUBRICS[0], platform: 'TikTok',
@@ -3237,6 +3576,8 @@ function init() {
 
 function initApp() {
   document.documentElement.dataset.theme = S.settings.theme || 'red';
+  prefsState();
+  applyComfort();
 
   // Суточный снимок: раз в день сохраняем вчерашнее состояние отдельным ключом.
   // Если основные данные испортятся — в настройках есть кнопка восстановления.
