@@ -3,7 +3,7 @@
    Работает только по https (например, GitHub Pages) — при локальном запуске
    через file:// просто не регистрируется, и это нормально. */
 
-const CACHE = 'project-ego-v3';
+const CACHE = 'project-ego-v4';
 const FILES = [
   './',
   './index.html',
